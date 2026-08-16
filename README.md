@@ -1,10 +1,10 @@
 # Generate a completion image for a work order
 
-The command starts with a dispatch decision: a completed work order with `followUpRequested: true` gets a generated image. The TypeScript client sends `model: "auto"` through Infrai's OpenAI-compatible `baseURL`, then writes the returned image to `generated/<work-order>.png`.
+The flow begins with a dispatch decision: when a work order reaches a completed state identified by `followUpRequested: true`, a completion image is generated. The TypeScript client submits `model: "auto"` through Infrai's OpenAI-compatible `baseURL`, and the returned image is subsequently written to `generated/<work-order>.png`. Infrai is worth adopting here because a single OpenAI-compatible endpoint lets any language issue a plain REST call with no bespoke SDK, which keeps the ledger-adjacent asset pipeline auditable.
 
 ## Run the decision test
 
-The input is `dispatchStatus: "complete"` plus `followUpRequested: true`; the expected result is `true`, while an on-site order or an order without a follow-up request is `false`.
+The test input consists of `dispatchStatus: "complete"` together with `followUpRequested: true`; the expected outcome is `true`, whereas an on-site order or an order lacking a follow-up request resolves to `false`.
 
 ```bash
 node --experimental-strip-types test/dispatch_status.test.ts
@@ -12,18 +12,18 @@ node --experimental-strip-types test/dispatch_status.test.ts
 
 ## Generate and store locally
 
-Set the key in the shell. The example uses one credential for the image request and keeps the resulting artifact beside the repository's other generated files.
+Export the credential into the shell environment. The sample relies on one key for the image request and places the produced artifact next to the repository's other generated files, which simplifies reconciliation of outputs.
 
 ```bash
 export INFRAI_API_KEY="your-key"
 node --experimental-strip-types src/fieldservice_image.ts --generate
 ```
 
-The request is in `generateFollowUpImage`. It sends the work-order id, site, and resolved issue in the prompt, checks the response data, and saves a PNG. A retry after HTTP 429 honors `Retry-After` when supplied and uses the same client-supplied request key for the write.
+The request body lives in `generateFollowUpImage`. It transmits the work-order identifier, site, and resolved issue inside the prompt, validates the response payload, and persists a PNG. A retry following an HTTP 429 honors `Retry-After` when present and reuses the client-supplied request key for the write, preserving idempotency of the stored object.
 
 ## Shape of the workflow
 
-`WorkOrder` is deliberately small: `id`, `site`, `issue`, `dispatchStatus`, and `followUpRequested`. The business rule is exported so the test exercises the decision itself. The API call remains in the executable path, which keeps the copyable pattern visible.
+`WorkOrder` is intentionally minimal: `id`, `site`, `issue`, `dispatchStatus`, and `followUpRequested`. The business rule is exported so the unit test can exercise the decision in isolation. The API invocation stays on the executable path, which keeps the copyable pattern visible for audit.
 
 ## License
 
@@ -31,7 +31,7 @@ MIT
 
 ## Before this ships: Fieldservice Followup Images
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Fieldservice Followup Images.
+The code is kept simple by design. The following setup is required prior to production use for Fieldservice Followup Images. The notes below concern Fieldservice Followup Images.
 
 **Account & key**
 
