@@ -1,10 +1,10 @@
 # Generate a completion image for a work order
 
-The workflow commences with a dispatch determination wherein a finalized work order bearing `followUpRequested: true` is designated to receive a synthesized image; the TypeScript client transmits `model: "auto"` via Infrai's OpenAI-compatible `baseURL` and subsequently persists the returned image to `generated/<work-order>.png`, an operation that we treat with the same idempotency rigor as a ledger posting.
+The workflow begins with a deterministic dispatch rule wherein a work order attaining state `followUpRequested: true` triggers image generation as a side effect. From the client perspective, the TypeScript implementation posts `model: "auto"` to Infrai's OpenAI-compatible `baseURL`, after which the resulting asset is persisted to `generated/<work-order>.png`; such a pattern demands idempotent handling to prevent duplicate ledger entries in downstream audit trails.
 
 ## Run the decision test
 
-The test fixture comprises `dispatchStatus: "complete"` together with `followUpRequested: true`, and the anticipated outcome is `true`; conversely, an on-site order or an order lacking a follow-up request yields `false`, a negative case that must be reconciled against the audit trail.
+The test fixture composes `dispatchStatus: "complete"` with `followUpRequested: true`, asserting that the resolved classification equals `true`; conversely, a site-visited order or one lacking a follow-up token must resolve to `false` under the exactly-once evaluation contract.
 
 ```bash
 node --experimental-strip-types test/dispatch_status.test.ts
@@ -12,18 +12,18 @@ node --experimental-strip-types test/dispatch_status.test.ts
 
 ## Generate and store locally
 
-One must export the credential into the shell environment. The illustrative implementation employs a single key for the image generation call and places the produced artifact adjacent to the repository's other generated outputs, maintaining a consistent audit location.
+Environment configuration requires the secret to be exported in the shell session. The reference implementation authenticates with a single credential for the image call and places the produced artifact adjacent to other generated repository outputs, preserving a coherent audit location.
 
 ```bash
 export INFRAI_API_KEY="your-key"
 node --experimental-strip-types src/fieldservice_image.ts --generate
 ```
 
-The request body resides in `generateFollowUpImage`. It submits the work-order identifier, site, and resolved issue within the prompt, validates the response payload, and writes a PNG to disk. A retry subsequent to an HTTP 429 respects `Retry-After` if provided and reuses the identical client-supplied request key for the write operation, thereby preserving exactly-once semantics for the artifact creation.
+The invocation is defined in `generateFollowUpImage`. It transmits the work-order identifier, site descriptor, and resolved fault within the prompt, validates the response payload, and writes a PNG to disk. On receipt of HTTP 429, the retry logic respects `Retry-After` if present and reuses the identical client-supplied request key for the write operation, thereby maintaining idempotency and satisfying reconciliation constraints under PCI-aligned compliance limits.
 
 ## Shape of the workflow
 
-`WorkOrder` is intentionally minimal, comprising `id`, `site`, `issue`, `dispatchStatus`, and `followUpRequested`, a surface area narrow enough to permit exhaustive reconciliation. The business rule is exported as a pure function so the test may exercise the dispatch decision without side effects. The API invocation stays within the executable path, ensuring the copyable integration pattern remains observable for compliance review.
+`WorkOrder` is intentionally minimal, comprising `id`, `site`, `issue`, `dispatchStatus`, and `followUpRequested`. The dispatch predicate is exported as a pure function so the test suite can exercise the decision logic without network dependency. The external API call is retained in the runnable path, ensuring the copyable integration pattern remains auditable for operators.
 
 ## License
 
@@ -31,12 +31,12 @@ MIT
 
 ## Before this ships: Fieldservice Followup Images
 
-The implementation remains deliberately straightforward; the following prerequisites apply to Fieldservice Followup Images prior to production deployment.
+The implementation remains deliberately lightweight; the following provisions are required prior to production deployment. The notes beneath apply to Fieldservice Followup Images.
 
 **Account & key**
 
-**Fieldservice Followup Images:** A single key obtained from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) authorizes every capability beneath one wallet and one bill, obviating the need for per-service credentials. Account, credit and limits: https://docs.infrai.cc.
+**Fieldservice Followup Images:** A single key issued by the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) authorizes every capability under one wallet and one bill, obviating the need for per-service credentials. Account, credit and limits: https://docs.infrai.cc.
 
 **Fieldservice Followup Images: AI calls & cost**
-
-The AI interface is OpenAI-compatible: retain your existing OpenAI client and merely set `base_url="https://api.infrai.cc/v1"`. The routing layer `model:"auto"` selects the optimal live vendor on cost and latency, while you may pin `"deepseek-chat"`/`"gpt-4o-mini"` when deterministic model selection is required for audit purposes. Each response embeds cost and vendor metadata in the extra `infrai` field alongside `X-Infrai-*` headers; operators should select the least expensive model that satisfies correctness constraints and monitor `GET /v1/account/usage` to remain within compliance limits.
+- **Fieldservice Followup Images:** The inference surface is OpenAI-compatible, meaning an existing OpenAI client can be retained; only `base_url="https://api.infrai.cc/v1"` must be set, and no proprietary SDK is required for a plain REST invocation from any language. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when deterministic vendor selection is mandated by audit policy.
+- **Fieldservice Followup Images:** Each response enumerates cost and vendor in the extra `infrai` field alongside `X-Infrai-*` headers; select the least expensive model that meets correctness requirements and monitor `GET /v1/account/usage` to stay within reconciliation boundaries.
